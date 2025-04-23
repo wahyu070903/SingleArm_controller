@@ -11,23 +11,39 @@ bool lastReading[numsOfButton] = {0};
 bool lastButtonState[numsOfButton] = {0};
 bool upEdgeRead[numsOfButton] = {0};
 unsigned long lastDebounceTime[numsOfButton] = {0};
-float KP = 10.0;
-float KI = 0.0;
-float KD = 12.0;
+bool ReferenceSwitch = false;
 
 uint8_t activePages = 0;
 uint8_t scrollMenuActive = 0;
 uint8_t pidSettingStep = 0;
 bool isScreenNeedUpdate = true;
+bool isKpidUpdated = false;
+bool isSettingMode = false;
+bool isKpidUpdateDone = false;
 
 void MenusInit(){
     lcd.begin(16, 2);
     pinMode(BUTTON_1, INPUT);
     pinMode(BUTTON_2, INPUT);
     pinMode(BUTTON_3, INPUT);
+    pinMode(A5, INPUT);
 }
 
-void InputsWatcher(){
+bool checkMax(double value){
+    if(value >= MAX_CONCTANT) return false; 
+    return true;
+}
+
+bool checkMin(double value){
+    if(value <= MIN_CONSTANT) return false;
+    return true;
+}
+
+bool isOnSettingMode(){
+    return isSettingMode;
+}
+
+void InputsWatcher(double* Kp, double* Ki, double* Kd, double* Sp){
     for(uint8_t i = 0; i < numsOfButton; i++){
         bool reading = digitalRead(buttonPins[i]);
         if (reading != lastReading[i]) {
@@ -51,6 +67,8 @@ void InputsWatcher(){
         }
         lastReading[i] = reading;
     }
+
+    ReferenceSwitch = digitalRead(A5);
 
     // enter config mode
     static unsigned long lastTime = 0;
@@ -101,26 +119,38 @@ void InputsWatcher(){
         if(upEdgeRead[1]){
             switch(pidSettingStep){
                 case 0:
-                    KP += 0.01;
+                    if(checkMax(*Kp)){
+                        *Kp += 0.01;
+                    }
                     break;
                 case 1:
-                    KI += 0.01;
+                    if(checkMax(*Ki)){
+                        *Ki += 0.01;
+                    }
                     break;
                 case 2:
-                    KD += 0.01;
+                    if(checkMax(*Kd)){
+                        *Kd += 0.01;
+                    }
                     break;
             }
             isScreenNeedUpdate = true;
         }else if(upEdgeRead[2]){
             switch(pidSettingStep){
                 case 0:
-                    KP -= 0.01;
+                    if(checkMin(*Kp)){
+                        *Kp -= 0.01;
+                    }
                     break;
                 case 1:
-                    KI -= 0.01;
+                    if(checkMin(*Ki)){
+                        *Ki -= 0.01;
+                    }
                     break;
                 case 2:
-                    KD -= 0.01;
+                    if(checkMin(*Kd)){
+                        *Kd -= 0.01;
+                    }
                     break;
             }
             isScreenNeedUpdate = true;
@@ -129,6 +159,8 @@ void InputsWatcher(){
             if(pidSettingStep < 2){
                 pidSettingStep++;
             }else{
+                isKpidUpdated = true;
+                isKpidUpdateDone = true;
                 activePages = 0;
                 pidSettingStep = 0;
             }
@@ -136,24 +168,45 @@ void InputsWatcher(){
             upEdgeRead[0] = false;
         }
     }
+
+    if(activePages == 3){
+        if(upEdgeRead[1]){
+            if(*Sp > 0.0){
+                *Sp = *Sp - 1;
+                isScreenNeedUpdate = true;
+            }
+        }
+        if(upEdgeRead[2]){
+            if(*Sp < 180.0){
+                *Sp = *Sp + 1;
+                isScreenNeedUpdate = true;
+            }
+        }
+        
+        if(upEdgeRead[0]){
+            activePages = 0;
+            isScreenNeedUpdate = true;
+        }
+    }
 }
 
-void MenuMainScreen(){
+void MenuMainScreen(double* Kp, double* Ki, double* Kd, double* Pv){
+
     lcd.clear();
     char buff[10];
-    dtostrf(KP, 3, 2, buff);
+    dtostrf(*Kp, 3, 2, buff);
     lcd.setCursor(0, 0);
     lcd.print("P=");
     lcd.setCursor(2, 0);
     lcd.print(buff);
 
-    dtostrf(KI, 3, 2, buff);
+    dtostrf(*Ki, 3, 2, buff);
     lcd.setCursor(9, 0);
     lcd.print("I=");
     lcd.setCursor(11, 0);
     lcd.print(buff);
 
-    dtostrf(KD, 3, 2, buff);
+    dtostrf(*Kd, 3, 2, buff);
     lcd.setCursor(0, 1);
     lcd.print("D=");
     lcd.setCursor(2, 1);
@@ -176,10 +229,9 @@ void MenuMainScreen(){
 }
 
 void SecondScreen(){
-    const char menusText[4][12] = {
+    const char menusText[3][12] = {
         "SetPIDparam",
         "SetTarget",
-        "Team",
         "Back <-",
     };
     lcd.clear();
@@ -187,26 +239,78 @@ void SecondScreen(){
     lcd.print("<");
     lcd.setCursor(0, 0);
     lcd.print(menusText[scrollMenuActive]);
-    if(scrollMenuActive < 4){
+    if(scrollMenuActive < 2){
         lcd.setCursor(0, 1);
         lcd.print(menusText[scrollMenuActive + 1]);
     }
 }
 
-void MainMenusRuntime(){
+void SetPointScreen(double* Sp){
+    char buff[10];
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("SP = ");
+    dtostrf(*Sp, 3, 1, buff);
+    lcd.print(buff);
+}
+void screenBack(){
+    activePages = 0;
+    isScreenNeedUpdate = 0;
+}
+bool isKpidNeedUpdate(){
+    return isKpidUpdated;
+}
+bool isKpidUpdateComplete(){
+    return isKpidUpdateDone;
+}
+void KpidUpdated(){
+    isKpidUpdated = false;
+    isKpidUpdateDone = false;
+}
+bool getReferenceSource(){
+    return ReferenceSwitch;
+}
+void MainMenusRuntime(double* Kp, double* Ki, double* Kd, double* Pv, double* Sp){
+    static double lastPv = -1.0;
+    Serial.println(activePages);
     if(isScreenNeedUpdate){
         switch(activePages){
             case 0:
-                MenuMainScreen();
+                MenuMainScreen(Kp, Ki, Kd, Pv);
+                isSettingMode = false;
+                scrollMenuActive = 0;
                 break;
             case 1:
                 SecondScreen();
+                isSettingMode = true;
                 break;
             case 2:
-                MenuMainScreen();
-
+                MenuMainScreen(Kp, Ki, Kd, Pv);
+                isSettingMode = true;
+                break;
+            case 3:
+                SetPointScreen(Sp);
+                isSettingMode = true;
+                break;
         }
         isScreenNeedUpdate = false;
     }
-    InputsWatcher();
+
+    if(activePages == 4){
+        screenBack();
+        if(!isScreenNeedUpdate) isScreenNeedUpdate = true;
+    }
+
+    if(activePages == 0 && abs(*Pv - lastPv) > 0.04){
+        char buff[10];
+        dtostrf(*Pv, 3, 1, buff);
+        lcd.setCursor(9, 1);
+        lcd.print("       ");
+        lcd.setCursor(9, 1);
+        lcd.print(buff);
+        lcd.print((char)223);
+        lastPv = *Pv;
+    }
+
+    InputsWatcher(Kp, Ki, Kd, Sp);
 }

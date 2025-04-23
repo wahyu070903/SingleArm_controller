@@ -3,11 +3,12 @@
 #include <PID_v1.h>
 
 const int potPin = A0;
+const int refPin = A1;
 const int IN1 = PD2;
 const int IN2 = PD6;
 const int ENABLE = PD5;
 
-double Kp = 1.2, Ki = 0.3, Kd = 0.6;
+double Kp = 0, Ki = 0, Kd = 0;
 double Input, Output, Setpoint;
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
@@ -17,22 +18,52 @@ const float deadband = 1.0;
 unsigned long scanTime = 50;
 unsigned long lastTime = 0;
 
+static bool motorIsRunning = false;
+bool isMotorInitialized = false;
+int readings[SMOOTHING_WINDOW] = {0};
+int readIndex = 0;
+long total = 0;
+
+void initSmoothing() {
+  for (int i = 0; i < SMOOTHING_WINDOW; i++) readings[i] = 0;
+}
+
+float getSmoothedInput() {
+  total -= readings[readIndex];
+  readings[readIndex] = analogRead(potPin);
+  total += readings[readIndex];
+  readIndex = (readIndex + 1) % SMOOTHING_WINDOW;
+  return (total / (float)SMOOTHING_WINDOW) / 1023.0 * 180.0;
+}
+
 void MotorInit(){
     pinMode(ENABLE, OUTPUT);
     pinMode(IN1, OUTPUT);
     pinMode(IN2, OUTPUT);
-    Setpoint = 90;
+    Setpoint = 0;
     myPID.SetMode(AUTOMATIC);
     myPID.SetOutputLimits(-255, 255);
+    isMotorInitialized = true;
 };
 
-void MainMotorRuntime(){
-    unsigned long now = millis();
-  if (now - lastTime >= scanTime) {
-    lastTime = now;
+void MainMotorRuntime(double* Pv, double* Sp, bool* Mode){
+  if(!isMotorInitialized){
+    MotorInit();
+  }
 
-    int analogValue = analogRead(potPin);
-    Input = map(analogValue, 0, 1023, 0, 180);
+  if(*Mode){
+    Setpoint = *Sp;
+  }else{
+    Setpoint = (analogRead(refPin) / 1023.0) * 180.0;
+  }
+
+  Input = getSmoothedInput();
+  *Pv = Input;
+  unsigned long now = millis();
+
+  if (now - lastTime >= scanTime) {
+    motorIsRunning = true;
+    lastTime = now;
 
     if (abs(Setpoint - Input) < deadband) {
       analogWrite(ENABLE, 0);
@@ -53,9 +84,22 @@ void MainMotorRuntime(){
     }
 
     analogWrite(ENABLE, pwmValue);
-
-    Serial.print("Angle: "); Serial.print(Input);
-    Serial.print(" | Setpoint: "); Serial.print(Setpoint);
-    Serial.print(" | Speed: "); Serial.println(pwmValue);
   }
+  motorIsRunning = false;
 };
+
+void ReTuneKpid(double Kp, double Ki, double Kd){
+  if(!motorIsRunning){
+    myPID.SetTunings(Kp, Ki, Kd);
+  }
+}
+
+void stopMotorRuntime(){
+  myPID.SetMode(MANUAL);
+  analogWrite(ENABLE, 0); 
+  digitalWrite(IN1, LOW);  
+  digitalWrite(IN2, LOW);
+  Output = 0;
+  initSmoothing();
+  isMotorInitialized = false;
+}
