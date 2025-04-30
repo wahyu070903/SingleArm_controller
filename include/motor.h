@@ -6,7 +6,7 @@
 #define POT_RESISTANCE 47000
 #define POT_TURN 5
 #define SMOOTHING_WINDOW 16
-#define JITTER_COMPEN 4
+#define JITTER_COMPEN 12
 
 void MotorInit();
 void MainMotorRuntime(double*, double*, bool*, int*, int*);
