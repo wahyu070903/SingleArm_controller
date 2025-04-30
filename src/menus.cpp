@@ -77,7 +77,7 @@ void InputsWatcher(double* Kp, double* Ki, double* Kd, double* Sp){
     if(activePages == 0){
         if(buttonState[0] == true && buttonState[2] == true){
             if(isPressed == true){
-                if(millis() - lastTime > 5000){
+                if(millis() - lastTime > 2000){
                     activePages = 1;
                     isScreenNeedUpdate = true;
                     lastTime = 0;
@@ -93,7 +93,7 @@ void InputsWatcher(double* Kp, double* Ki, double* Kd, double* Sp){
     static bool upEdge1 = false;
     static bool upEdge2 = false;
     if(activePages == 1){
-        if(buttonState[1] && !upEdge1 && scrollMenuActive < 3){
+        if(buttonState[1] && !upEdge1 && scrollMenuActive < 2){
             scrollMenuActive++;
             isScreenNeedUpdate = true;
             upEdge1 = true;
@@ -116,7 +116,7 @@ void InputsWatcher(double* Kp, double* Ki, double* Kd, double* Sp){
     }
 
     if(activePages == 2){
-        if(upEdgeRead[1]){
+        if(upEdgeRead[2]){
             switch(pidSettingStep){
                 case 0:
                     if(checkMax(*Kp)){
@@ -135,7 +135,7 @@ void InputsWatcher(double* Kp, double* Ki, double* Kd, double* Sp){
                     break;
             }
             isScreenNeedUpdate = true;
-        }else if(upEdgeRead[2]){
+        }else if(upEdgeRead[1]){
             switch(pidSettingStep){
                 case 0:
                     if(checkMin(*Kp)){
@@ -272,7 +272,6 @@ bool getReferenceSource(){
 }
 void MainMenusRuntime(double* Kp, double* Ki, double* Kd, double* Pv, double* Sp){
     static double lastPv = -1.0;
-    Serial.println(activePages);
     if(isScreenNeedUpdate){
         switch(activePages){
             case 0:
