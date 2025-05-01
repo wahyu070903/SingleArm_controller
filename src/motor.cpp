@@ -54,7 +54,6 @@ float getSmoothedInput(int* r_limit, int* l_limit) {
   float mapped = (float)(raw - *l_limit) * 180.0 / (*r_limit - *l_limit);
   lastSensRead = read;
 
-  Serial.println(raw);
   return mapped;
 }
 
@@ -67,23 +66,27 @@ void MotorInit() {
 }
 
 double computePID(double input, double setpoint) {
-  unsigned long now = millis();
-  double dt = (now - lastTime) / 1000.0;
-  if (dt <= 0) return Output;
-
   double error = setpoint - input;
+
   if (abs(error) < deadband) {
     integral = 0;
     return 0;
   }
 
-  integral += error * dt;
-  integral = constrain(integral, -255, 255);
+  double tentativeIntegral = integral + error * (scanTime / 1000.0);
+  double tentativeOutput = Kp * error + Ki * tentativeIntegral + Kd * ((error - lastError) / (scanTime / 1000.0));
 
-  double derivative = (error - lastError) / dt;
+  if (abs(tentativeOutput) < maxPWM) {
+    integral = tentativeIntegral;
+  }
+
+  double derivative = (error - lastError) / (scanTime / 1000.0);
   Output = Kp * error + Ki * integral + Kd * derivative;
+
   lastError = error;
-  lastTime = now;
+  Serial.print(integral);
+  Serial.print(", ");
+  Serial.println(derivative);
   return Output;
 }
 
@@ -101,9 +104,8 @@ void MainMotorRuntime(double* Pv, double* Sp, bool* Mode, int* r_limit, int* l_l
   Input = getSmoothedInput(r_limit, l_limit);
   *Pv = Input;
 
-  if (millis() - lastTime >= scanTime) {
-    motorIsRunning = true;
-
+  unsigned long now = millis();
+  if (now - lastTime >= scanTime) {
     double pidOutput = computePID(Input, Setpoint);
 
     if (abs(Setpoint - Input) < deadband) {
@@ -126,18 +128,16 @@ void MainMotorRuntime(double* Pv, double* Sp, bool* Mode, int* r_limit, int* l_l
     }
 
     analogWrite(ENABLE, currentPWM);
+    lastTime = now;
   }
-  motorIsRunning = false;
 }
 
 void ReTuneKpid(double p, double i, double d) {
-  if (!motorIsRunning) {
-    Kp = p;
-    Ki = i;
-    Kd = d;
-    integral = 0;
-    lastError = 0;
-  }
+  Kp = p;
+  Ki = i;
+  Kd = d;
+  integral = 0;
+  lastError = 0;
 }
 
 void stopMotorRuntime() {

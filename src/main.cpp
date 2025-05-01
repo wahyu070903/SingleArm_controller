@@ -29,25 +29,20 @@ void firstInit(){
 
   while (digitalRead(LIMIT_1) != 0) {
     SlowMoveMotor(0);
-    // Serial.print("Left = ");
-    // Serial.println(getRawSensorValue());
   }
   stopMotorRuntime();
   delay(200);
   left_limit = getRawSensorValue();
-  // Serial.println(left_limit);
 
   delay(1500);
 
   while (digitalRead(LIMIT_2) != 0) {
     SlowMoveMotor(1);
-    // Serial.print("Right = ");
-    // Serial.println(getRawSensorValue());
   }
   stopMotorRuntime();
   delay(200);
   right_limit = getRawSensorValue();
-  // Serial.println(right_limit);
+
   SlowMoveMotor(0);
   delay(500);
   stopMotorRuntime();
@@ -76,7 +71,7 @@ void loop() {
   if(digitalRead(LIMIT_1) == 0 || digitalRead(LIMIT_2) == 0){
     stopMotorRuntime();
     system_disabled = true;
-  }else{
+  }else if(!system_disabled){
     referenceMode = getReferenceSource();
     MainMenusRuntime(&PID_constant.Kp, &PID_constant.Ki, &PID_constant.Kd, &SensValue, &SetPoint);
     if(isOnSettingMode()){
