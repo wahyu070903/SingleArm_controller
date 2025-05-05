@@ -20,6 +20,7 @@ bool isScreenNeedUpdate = true;
 bool isKpidUpdated = false;
 bool isSettingMode = false;
 bool isKpidUpdateDone = false;
+bool isMotorEnable = false;
 
 void MenusInit(){
     lcd.begin(16, 2);
@@ -30,7 +31,7 @@ void MenusInit(){
 }
 
 bool checkMax(double value){
-    if(value >= MAX_CONCTANT) return false; 
+    if(value >= MAX_CONSTANT) return false; 
     return true;
 }
 
@@ -87,6 +88,10 @@ void InputsWatcher(double* Kp, double* Ki, double* Kd, double* Sp){
                 isPressed = true;
                 lastTime = millis();
             }
+        }
+        if(upEdgeRead[1] == 1){
+            isMotorEnable = !isMotorEnable;
+            isScreenNeedUpdate = true;
         }
     }
 
@@ -201,9 +206,9 @@ void MenuMainScreen(double* Kp, double* Ki, double* Kd, double* Pv){
     lcd.print(buff);
 
     dtostrf(*Ki, 3, 2, buff);
-    lcd.setCursor(9, 0);
+    lcd.setCursor(8, 0);
     lcd.print("I=");
-    lcd.setCursor(11, 0);
+    lcd.setCursor(10, 0);
     lcd.print(buff);
 
     dtostrf(*Kd, 3, 2, buff);
@@ -216,7 +221,7 @@ void MenuMainScreen(double* Kp, double* Ki, double* Kd, double* Pv){
         if(pidSettingStep == 0){
             lcd.setCursor(0,0);
         }else if(pidSettingStep == 1){
-            lcd.setCursor(9,0);
+            lcd.setCursor(8,0);
         }else{
             lcd.setCursor(0,1);
         }
@@ -225,6 +230,11 @@ void MenuMainScreen(double* Kp, double* Ki, double* Kd, double* Pv){
     }else{
         lcd.noCursor();
         lcd.noBlink();
+
+        lcd.setCursor(15,0);
+        lcd.print((char) 0x7E);
+        lcd.setCursor(15,1);
+        (isMotorEnable) ? lcd.print("R") : lcd.print("F");
     }
 }
 
@@ -303,13 +313,25 @@ void MainMenusRuntime(double* Kp, double* Ki, double* Kd, double* Pv, double* Sp
     if(activePages == 0 && abs(*Pv - lastPv) > 0.04){
         char buff[10];
         dtostrf(*Pv, 3, 1, buff);
-        lcd.setCursor(9, 1);
+        lcd.setCursor(8, 1);
         lcd.print("       ");
-        lcd.setCursor(9, 1);
+        lcd.setCursor(8, 1);
         lcd.print(buff);
         lcd.print((char)223);
         lastPv = *Pv;
     }
 
     InputsWatcher(Kp, Ki, Kd, Sp);
+}
+
+void displayInitialize(){
+    lcd.clear();
+    lcd.setCursor(3,0);
+    lcd.print("Initialize");
+    lcd.setCursor(6, 1);
+    lcd.print("...");
+}
+
+bool getMotorCmdStat() {
+    return isMotorEnable;
 }

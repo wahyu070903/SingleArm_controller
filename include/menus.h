@@ -6,7 +6,7 @@
 #define BUTTON_3 7
 #define BUTTON_COUNT 3
 #define DEBOUNCE_DELAY 50
-#define MAX_CONCTANT 10.0f
+#define MAX_CONSTANT 99.9f
 #define MIN_CONSTANT 0.0f
 #define LCD_RS 8
 #define LCD_EN 9
@@ -22,4 +22,6 @@ bool isKpidUpdateComplete();
 void KpidUpdated();
 bool isOnSettingMode();
 bool getReferenceSource();
+void displayInitialize();
+bool getMotorCmdStat();
 #endif
