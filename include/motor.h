@@ -5,7 +5,7 @@
 #define MAX_POTVAL 1023
 #define POT_RESISTANCE 47000
 #define POT_TURN 5
-#define SMOOTHING_WINDOW 8
+#define SMOOTHING_WINDOW 4
 #define JITTER_COMPEN 4
 
 void MotorInit();

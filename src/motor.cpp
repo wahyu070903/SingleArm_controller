@@ -20,7 +20,7 @@ const int minPWM = 100;
 const int maxPWM = 255;
 const int slowMinPWM = 100;
 const float deadband = 0.5;
-const unsigned long scanTime = 20;
+const unsigned long scanTime = 2; // 2ms
 
 static bool motorIsRunning = false;
 bool isMotorInitialized = false;
@@ -40,7 +40,6 @@ void initSmoothing() {
 float getSmoothedInput(int* r_limit, int* l_limit) {
   total -= readings[readIndex];
   int read = analogRead(potPin);
-  Serial.println(read);
 
   readings[readIndex] = read;
   total += readings[readIndex];
@@ -109,7 +108,7 @@ void MainMotorRuntime(double* Sp, bool* Mode) {
       return;
     }
 
-    int pwmValue = constrain(abs(pidOutput), 0, 255);
+    int pwmValue = constrain(abs(pidOutput), minPWM, 255);
     if (pwmValue > currentPWM) currentPWM++;
     else currentPWM--;
 

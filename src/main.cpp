@@ -77,9 +77,9 @@ void setup() {
     PID_constant.Ki = 0;
     PID_constant.Kd = 0;
   }
-  PID_constant.Kp = 8;
-  PID_constant.Ki = 0;
-  PID_constant.Kd = 0;
+  PID_constant.Kp = 3.6;
+  PID_constant.Ki = 0.24;
+  PID_constant.Kd = 0.08;
 
   SetPoint = 90.0;
   ReTuneKpid(PID_constant.Kp, PID_constant.Ki, PID_constant.Kd);
@@ -89,11 +89,7 @@ void setup() {
 }
 
 void loop() {
-  Serial.print(right_limit);
-  Serial.print(", ");
-  Serial.print(left_limit);
-  Serial.print(", ");
-  
+
   if(digitalRead(LIMIT_1) == 0 || digitalRead(LIMIT_2) == 0){
     stopMotorRuntime();
     system_disabled = true;
@@ -114,5 +110,5 @@ void loop() {
     }
   }
 
-  // Serial.println(SensValue);
+  Serial.println(SensValue);
 }
